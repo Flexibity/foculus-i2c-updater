@@ -1,4 +1,4 @@
 #.PHONY all
 
 all:
-	gcc -Wall main.c -o foculus-i2c-updater
+	gcc -std=c99 main.c -o foculus-i2c-updater
