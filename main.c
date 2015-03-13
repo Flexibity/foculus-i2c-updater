@@ -35,6 +35,8 @@
 #include <sys/types.h>
 
 #define ORIG_FN "dump.dat"
+#define NEW_FN "FoculusEDID3.dat"
+#define SIZE (sizeof(command)-1)
 
 // Based on info from John Newbigin jnewbigin@chrysocome.net http://blog.chrysocome.net/2013/03/programming-i2c.html
 
@@ -94,17 +96,32 @@ int main(int argc, char **argv) {
 	if( origFile == 0) {
 		printf("save dump to " ORIG_FN "\n");
 		origFile = fopen(ORIG_FN, "w");
-		fwrite(command,sizeof(command)-1,1,origFile);
+		fwrite(command,SIZE,1,origFile);
 	}
 	else printf("file " ORIG_FN " already exists! \n");
 
+	fclose(origFile);
+
 	command[0] = 0x0;
-	command[1] = 0xcd;
-	r = write(fd, &command, 2);
-	if (r != 2) {
-		perror("writing to device\n");
+
+	origFile = fopen(NEW_FN, "r");
+
+	if( origFile == 0)
+		printf("file " NEW_FN " do not exists! \n");
+	else {
+		printf("read from " NEW_FN "\n");
+		for(i=0;i<bytesToRead /8;i++){
+			usleep(delay * 10);
+			fread(&command[1],8,1,origFile);
+			r = write(fd, command, 9);
+			if (r != 9) {
+				perror("writing to device\n");
+			}
+			command[0]+=8;
+		}
 	}
 
+	fclose(origFile);
 	close(fd);
 	return (0);
 }
