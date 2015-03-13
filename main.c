@@ -34,12 +34,15 @@
 #include <unistd.h>
 #include <sys/types.h>
 
+#define ORIG_FN "dump.dat"
+
 // Based on info from John Newbigin jnewbigin@chrysocome.net http://blog.chrysocome.net/2013/03/programming-i2c.html
 
 int main(int argc, char **argv) {
 	int i;
 	int r;
 	int fd;
+	FILE *origFile;
 	unsigned char value[4];
 	useconds_t delay = 2000;
 	int bytesToRead = 256;
@@ -80,10 +83,20 @@ int main(int argc, char **argv) {
 				perror("reading i2c device\n");
 			}
 			usleep(delay);
+			command[i * 16 + j]=value[0];
 			printf("0x%02x ", value[0]);
 		}
 		printf("\n");
 	}
+
+	origFile = fopen(ORIG_FN, "r");
+
+	if( origFile == 0) {
+		printf("save dump to " ORIG_FN "\n");
+		origFile = fopen(ORIG_FN, "w");
+		fwrite(command,sizeof(command)-1,1,origFile);
+	}
+	else printf("file " ORIG_FN " already exists! \n");
 
 	command[0] = 0x0;
 	command[1] = 0xcd;
