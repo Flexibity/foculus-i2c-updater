@@ -24,57 +24,104 @@
 
  */
 
+#define _XOPEN_SOURCE 500
+
 #include <stdio.h>
 #include <fcntl.h>
 #include <unistd.h>
 #include <sys/ioctl.h>
 #include <linux/i2c-dev.h>
+#include <unistd.h>
+#include <sys/types.h>
+
+#define ORIG_FN "dump.dat"
+#define NEW_FN "FoculusEDID3.dat"
+#define SIZE (sizeof(command)-1)
 
 // Based on info from John Newbigin jnewbigin@chrysocome.net http://blog.chrysocome.net/2013/03/programming-i2c.html
 
 int main(int argc, char **argv) {
-  int i;
-  int r;
-  int fd;
-  unsigned char command[2];
-  unsigned char value[4];
-  useconds_t delay = 2000;
-  int bytesToRead = 256;
+	int i;
+	int r;
+	int fd;
+	FILE *origFile;
+	unsigned char value[4];
+	useconds_t delay = 2000;
+	int bytesToRead = 256;
+	unsigned char command[bytesToRead + 1];
 
-  char *dev = "/dev/i2c-1";
-  int addr = 0x50;
+	char *dev = "/dev/i2c-1";
+	int addr = 0x50;
 
-  printf("oculus-i2c-updater\n");
+	printf("oculus-i2c-updater\n");
 
-  fd = open(dev, O_RDWR);
-  if (fd < 0) {
-    perror("Opening i2c device node\n");
-    return 1;
-  }
+	fd = open(dev, O_RDWR);
+	if (fd < 0) {
+		perror("Opening i2c device node\n");
+		return 1;
+	}
 
-  r = ioctl(fd, I2C_SLAVE, addr);
-  if (r < 0) {
-    perror("Selecting i2c device\n");
-  }
+	r = ioctl(fd, I2C_SLAVE, addr);
+	if (r < 0) {
+		perror("Selecting i2c device\n");
+	}
 
-  while (1) {
-    for (i = 0; i < bytesToRead / 16; i++) {
-      for(int j = 0; j < 16; j++){
-        command[0] = 0x40 | ((i + 1) & 0x03); // output enable | read input i
-        //command[1] = ;
-        r = write(fd, &command, 2);
-        usleep(delay);
-        // the read is always one step behind the selected input
-        r = read(fd, &value[0], 1);
-        if (r != 1) {
-          perror("reading i2c device\n");
-        }
-        usleep(delay);
-        printf("0x%02x ", value[0]);
-      }
-    }
-  }
+	command[0] = 0x0;
+	r = write(fd, &command, 1);
+	if (r != 1) {
+		perror("setting address i2c device\n");
 
-  close(fd);
-  return (0);
+		close(fd);
+		return (1	);
+	}
+
+	for (i = 0; i < bytesToRead / 16; i++) {
+		for (int j = 0; j < 16; j++) {
+			//r = write(fd, &command, 2);
+			usleep(delay);
+			// the read is always one step behind the selected input
+			r = read(fd, &value[0], 1);
+			if (r != 1) {
+				perror("reading i2c device\n");
+			}
+			usleep(delay);
+			command[i * 16 + j]=value[0];
+			printf("0x%02x ", value[0]);
+		}
+		printf("\n");
+	}
+
+	origFile = fopen(ORIG_FN, "r");
+
+	if( origFile == 0) {
+		printf("save dump to " ORIG_FN "\n");
+		origFile = fopen(ORIG_FN, "w");
+		fwrite(command,SIZE,1,origFile);
+	}
+	else printf("file " ORIG_FN " already exists! \n");
+
+	fclose(origFile);
+
+	command[0] = 0x0;
+
+	origFile = fopen(NEW_FN, "r");
+
+	if( origFile == 0)
+		printf("file " NEW_FN " do not exists! \n");
+	else {
+		printf("read from " NEW_FN "\n");
+		for(i=0;i<bytesToRead /8;i++){
+			usleep(delay * 10);
+			fread(&command[1],8,1,origFile);
+			r = write(fd, command, 9);
+			if (r != 9) {
+				perror("writing to device\n");
+			}
+			command[0]+=8;
+		}
+	}
+
+	fclose(origFile);
+	close(fd);
+	return (0);
 }
