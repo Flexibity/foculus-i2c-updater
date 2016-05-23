@@ -57,13 +57,13 @@ int main(int argc, char **argv) {
 
 	fd = open(dev, O_RDWR);
 	if (fd < 0) {
-		perror("Opening i2c device node\n");
+		perror("Opening i2c device node \n");
 		return 1;
 	}
 
 	r = ioctl(fd, I2C_SLAVE, addr);
 	if (r < 0) {
-		perror("Selecting i2c device\n");
+		perror("Selecting i2c device \n");
 	}
 
 	command[0] = 0x0;
@@ -82,7 +82,7 @@ int main(int argc, char **argv) {
 			// the read is always one step behind the selected input
 			r = read(fd, &value[0], 1);
 			if (r != 1) {
-				perror("reading i2c device\n");
+				perror("reading i2c device... \n");
 			}
 			usleep(delay);
 			command[i * 16 + j]=value[0];
@@ -94,12 +94,16 @@ int main(int argc, char **argv) {
 	origFile = fopen(ORIG_FN, "r");
 
 	if( origFile == 0) {
-		printf("save dump to " ORIG_FN "\n");
+		printf("saving dump to " ORIG_FN "... \n");
 		origFile = fopen(ORIG_FN, "w");
 		fwrite(command,SIZE,1,origFile);
 	}
-	else printf("file " ORIG_FN " already exists! \n");
-
+	else {
+		printf("file " ORIG_FN " already exists! \n");
+		fclose(origFile);
+		close(fd);
+		return 0;
+	}
 	fclose(origFile);
 
 	command[0] = 0x0;
@@ -109,13 +113,13 @@ int main(int argc, char **argv) {
 	if( origFile == 0)
 		printf("file " NEW_FN " do not exists! \n");
 	else {
-		printf("read from " NEW_FN "\n");
+		printf("reading from " NEW_FN "... \n");
 		for(i=0;i<bytesToRead /8;i++){
 			usleep(delay * 10);
 			fread(&command[1],8,1,origFile);
 			r = write(fd, command, 9);
 			if (r != 9) {
-				perror("writing to device\n");
+				perror("writing to device \n");
 			}
 			command[0]+=8;
 		}
